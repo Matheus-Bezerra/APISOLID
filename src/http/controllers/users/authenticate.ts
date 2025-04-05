@@ -4,7 +4,7 @@ import { FastifyReply, FastifyRequest } from "fastify"
 import path from "path"
 import { z } from "zod"
 
-export async function authenticate (req: FastifyRequest, reply: FastifyReply) {
+export async function authenticate(req: FastifyRequest, reply: FastifyReply) {
     const authenticateBodySchema = z.object({
         email: z.string().email(),
         password: z.string().min(6)
@@ -14,23 +14,30 @@ export async function authenticate (req: FastifyRequest, reply: FastifyReply) {
 
     try {
         const authenticateUseCase = makeAuthenticateUseCase()
-        const {user} =  await authenticateUseCase.execute({
+        const { user } = await authenticateUseCase.execute({
             email,
             password
         })
 
-        const token = await reply.jwtSign({}, {
-            sign: {
-                sub: user.id
-            }
-        })
+        const token = await reply.jwtSign(
+            {
+                role: user.role
+            },
+            {
+                sign: {
+                    sub: user.id
+                }
+            })
 
-        const refreshToken = await reply.jwtSign({}, {
-            sign: {
-                sub: user.id,
-                expiresIn: '7d'
-            }
-        })
+        const refreshToken = await reply.jwtSign(
+            {
+                role: user.role
+            },
+            {
+                sign: {
+                    sub: user.id
+                }
+            })
 
         return reply
             .setCookie('refreshToken', refreshToken, {
@@ -40,11 +47,11 @@ export async function authenticate (req: FastifyRequest, reply: FastifyReply) {
                 httpOnly: true
             })
             .status(200)
-            .send({token})
+            .send({ token })
 
     } catch (err) {
-        if(err instanceof InvalidCredentialsError) {
-            return reply.status(400).send({message: err.message})
+        if (err instanceof InvalidCredentialsError) {
+            return reply.status(400).send({ message: err.message })
         }
 
         throw err
